@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Al-Awla Admin Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Noto+Sans+Ethiopic:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- 1. Load Supabase direct standalone library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 :root{--ink:#0b0b12;--paper:#f7f2e9;--gold:#c9a45c;--white:#fff;--line:rgba(11,11,18,.11);--radius:16px}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Manrope,"Noto Sans Ethiopic",sans-serif}
@@ -30,7 +34,7 @@ table{width:100%;border-collapse:collapse;text-align:left;font-size:.88rem}
 th,td{padding:14px 18px;border-bottom:1px solid var(--line)}
 th{background:#faf6ef;font-weight:800}
 .hidden{display:none!important}
-.error-msg{color:#d9534f;font-size:.85rem;margin-top:10px}
+.error-msg{color:#d9534f;font-size:.85rem;margin-top:10px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -49,14 +53,14 @@ th{background:#faf6ef;font-weight:800}
           <label>Password</label>
           <input type="password" id="adminPassword" required placeholder="••••••••">
         </div>
-        <button type="submit">Log In</button>
+        <button type="submit" id="loginBtn">Log In</button>
         <div id="loginError" class="error-msg"></div>
       </form>
     </div>
   </div>
 
   <!-- DASHBOARD SECTION -->
-  <div id="dashboardScreen" class="dashboard-screen hidden">
+  <div id="dashboardScreen" class="dashboard-screen">
     <aside>
       <div>
         <h2>AL-AWLA ADMIN</h2>
@@ -128,50 +132,50 @@ th{background:#faf6ef;font-weight:800}
     </main>
   </div>
 
-  <script type="module">
-    import { supabase } from '../supabaseClient.js';
+  <script>
+    // Direct initialization - no external JS file needed
+    const SUPABASE_URL = 'https://oioqlvvzmifklxeyqrhy.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pb3FsdnZ6bWlma2x4ZXlxcmh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNTAxNzEsImV4cCI6MjEwNTgyNjE3MX0.OUUiLovpfvZXb1B3XxD1hXsSkI1vlW7laDtTXFkCNK4';
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const loginScreen = document.getElementById('loginScreen');
     const dashboardScreen = document.getElementById('dashboardScreen');
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
 
-    console.log("Supabase initialized successfully:", supabase);
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check session on load
+    client.auth.getSession().then(({ data: { session } }) => {
       if (session) showDashboard();
     });
 
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      loginError.textContent = '';
+      loginError.textContent = 'Logging in...';
       
       const email = document.getElementById('adminEmail').value.trim();
       const password = document.getElementById('adminPassword').value.trim();
 
-      console.log("Attempting sign-in for:", email);
-
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
       
       if (error) {
-        console.error("Login error detected:", error.message);
-        loginError.textContent = error.message;
+        loginError.textContent = "Error: " + error.message;
         alert("Login Failed: " + error.message);
       } else {
-        console.log("Login success response:", data);
+        loginError.textContent = '';
         showDashboard();
       }
     });
 
     window.handleLogout = async function() {
-      await supabase.auth.signOut();
+      await client.auth.signOut();
       dashboardScreen.classList.add('hidden');
-      loginScreen.classList.remove('hidden');
+      loginScreen.style.display = 'flex';
     }
 
     function showDashboard() {
-      loginScreen.classList.add('hidden');
-      dashboardScreen.classList.remove('hidden');
+      loginScreen.style.display = 'none';
+      dashboardScreen.style.display = 'grid';
       loadDashboardStats();
       loadInquiries();
     }
@@ -186,21 +190,21 @@ th{background:#faf6ef;font-weight:800}
 
     async function loadDashboardStats() {
       try {
-        const { count: postsCount } = await supabase.from('posts').select('*', { count: 'exact', head: true });
-        const { count: pkgCount } = await supabase.from('packages').select('*', { count: 'exact', head: true });
-        const { count: inqCount } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', 'Unread');
+        const { count: postsCount } = await client.from('posts').select('*', { count: 'exact', head: true });
+        const { count: pkgCount } = await client.from('packages').select('*', { count: 'exact', head: true });
+        const { count: inqCount } = await client.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', 'Unread');
 
         document.getElementById('statPosts').textContent = postsCount || 0;
         document.getElementById('statPackages').textContent = pkgCount || 0;
         document.getElementById('statInquiries').textContent = inqCount || 0;
       } catch (err) {
-        console.error("Error loading dashboard stats:", err);
+        console.error("Stats load error:", err);
       }
     }
 
     async function loadInquiries() {
       try {
-        const { data: inquiries } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false });
+        const { data: inquiries } = await client.from('inquiries').select('*').order('created_at', { ascending: false });
         const tbody = document.getElementById('inquiriesTableBody');
         if (!inquiries || inquiries.length === 0) {
           tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#777;">No inquiries yet.</td></tr>`;
@@ -216,7 +220,7 @@ th{background:#faf6ef;font-weight:800}
           </tr>
         `).join('');
       } catch (err) {
-        console.error("Error fetching inquiries:", err);
+        console.error("Inquiries load error:", err);
       }
     }
 
@@ -229,7 +233,7 @@ th{background:#faf6ef;font-weight:800}
       const category = document.getElementById('postCategory').value;
       const status = document.getElementById('postStatus').value;
 
-      const { error } = await supabase.from('posts').insert([{
+      const { error } = await client.from('posts').insert([{
         title_am, title_en, description_am, description_en, category, status
       }]);
 
