@@ -136,8 +136,7 @@ th{background:#faf6ef;font-weight:800}
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
 
-    // Test connection on load
-    console.log("Supabase initialized:", supabase);
+    console.log("Supabase initialized successfully:", supabase);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) showDashboard();
@@ -150,16 +149,16 @@ th{background:#faf6ef;font-weight:800}
       const email = document.getElementById('adminEmail').value.trim();
       const password = document.getElementById('adminPassword').value.trim();
 
-      console.log("Attempting login with:", email);
+      console.log("Attempting sign-in for:", email);
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        console.error("Login error:", error);
+        console.error("Login error detected:", error.message);
         loginError.textContent = error.message;
         alert("Login Failed: " + error.message);
       } else {
-        console.log("Login successful:", data);
+        console.log("Login success response:", data);
         showDashboard();
       }
     });
@@ -195,26 +194,30 @@ th{background:#faf6ef;font-weight:800}
         document.getElementById('statPackages').textContent = pkgCount || 0;
         document.getElementById('statInquiries').textContent = inqCount || 0;
       } catch (err) {
-        console.error("Error loading stats:", err);
+        console.error("Error loading dashboard stats:", err);
       }
     }
 
     async function loadInquiries() {
-      const { data: inquiries } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false });
-      const tbody = document.getElementById('inquiriesTableBody');
-      if (!inquiries || inquiries.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#777;">No inquiries yet.</td></tr>`;
-        return;
+      try {
+        const { data: inquiries } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false });
+        const tbody = document.getElementById('inquiriesTableBody');
+        if (!inquiries || inquiries.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#777;">No inquiries yet.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = inquiries.map(inq => `
+          <tr>
+            <td>${inq.customer_name}</td>
+            <td><a href="tel:${inq.phone}" style="color:var(--gold);text-decoration:none">${inq.phone}</a></td>
+            <td>${inq.service_category || 'General'}</td>
+            <td>${inq.message}</td>
+            <td>${new Date(inq.created_at).toLocaleDateString()}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error("Error fetching inquiries:", err);
       }
-      tbody.innerHTML = inquiries.map(inq => `
-        <tr>
-          <td>${inq.customer_name}</td>
-          <td><a href="tel:${inq.phone}" style="color:var(--gold);text-decoration:none">${inq.phone}</a></td>
-          <td>${inq.service_category || 'General'}</td>
-          <td>${inq.message}</td>
-          <td>${new Date(inq.created_at).toLocaleDateString()}</td>
-        </tr>
-      `).join('');
     }
 
     document.getElementById('postForm').addEventListener('submit', async (e) => {
@@ -239,6 +242,5 @@ th{background:#faf6ef;font-weight:800}
       }
     });
   </script>
-
 </body>
 </html>
