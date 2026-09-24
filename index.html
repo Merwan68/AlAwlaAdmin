@@ -129,13 +129,15 @@ th{background:#faf6ef;font-weight:800}
   </div>
 
   <script type="module">
-    // Note the path '../supabaseClient.js' because this file is inside the /admin folder
     import { supabase } from '../supabaseClient.js';
 
     const loginScreen = document.getElementById('loginScreen');
     const dashboardScreen = document.getElementById('dashboardScreen');
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
+
+    // Test connection on load
+    console.log("Supabase initialized:", supabase);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) showDashboard();
@@ -144,13 +146,20 @@ th{background:#faf6ef;font-weight:800}
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       loginError.textContent = '';
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
+      
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log("Attempting login with:", email);
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
       if (error) {
+        console.error("Login error:", error);
         loginError.textContent = error.message;
+        alert("Login Failed: " + error.message);
       } else {
+        console.log("Login successful:", data);
         showDashboard();
       }
     });
@@ -177,13 +186,17 @@ th{background:#faf6ef;font-weight:800}
     }
 
     async function loadDashboardStats() {
-      const { count: postsCount } = await supabase.from('posts').select('*', { count: 'exact', head: true });
-      const { count: pkgCount } = await supabase.from('packages').select('*', { count: 'exact', head: true });
-      const { count: inqCount } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', 'Unread');
+      try {
+        const { count: postsCount } = await supabase.from('posts').select('*', { count: 'exact', head: true });
+        const { count: pkgCount } = await supabase.from('packages').select('*', { count: 'exact', head: true });
+        const { count: inqCount } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', 'Unread');
 
-      document.getElementById('statPosts').textContent = postsCount || 0;
-      document.getElementById('statPackages').textContent = pkgCount || 0;
-      document.getElementById('statInquiries').textContent = inqCount || 0;
+        document.getElementById('statPosts').textContent = postsCount || 0;
+        document.getElementById('statPackages').textContent = pkgCount || 0;
+        document.getElementById('statInquiries').textContent = inqCount || 0;
+      } catch (err) {
+        console.error("Error loading stats:", err);
+      }
     }
 
     async function loadInquiries() {
@@ -226,5 +239,6 @@ th{background:#faf6ef;font-weight:800}
       }
     });
   </script>
+
 </body>
 </html>
